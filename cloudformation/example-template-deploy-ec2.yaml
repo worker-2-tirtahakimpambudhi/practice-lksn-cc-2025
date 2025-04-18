@@ -1,0 +1,146 @@
+Parameters:
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    Description: EC2 instance type
+    
+  KeyNameParameter:
+    Type: String
+    Default: key-pair-example
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+  
+  CidrBlockParameter:
+    Type: String
+    Default: 192.168.1.0/24
+    Description: CIDR block for the VPC
+    
+  VPCNameParameter:
+    Type: String
+    Default: vpc-example
+    Description: Name of the VPC
+  
+  EC2InstanceNameParameter:
+    Type: String
+    Default: ec2-example
+    Description: Name of the EC2 instance
+    
+Resources:
+  EC2KeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyFormat: "pem"
+      KeyType: "ed25519"
+      KeyName: !Ref KeyNameParameter
+      Tags: 
+        - Key: "Name"
+          Value: !Ref KeyNameParameter
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref CidrBlockParameter
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-${VPCNameParameter}"
+          
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCNameParameter}-igw"
+          
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+      
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref CidrBlockParameter
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCNameParameter}-public-subnet"
+          
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCNameParameter}-public-route-table"
+          
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+      
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${VPCNameParameter}-sg"
+      GroupDescription: Security group for the EC2 instance
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: Allow SSH access
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: Allow HTTP access
+          
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties: 
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: !Ref KeyNameParameter
+      ImageId: ami-07a6f770277670015
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          GroupSet:
+            - !Ref InstanceSecurityGroup
+          SubnetId: !Ref PublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-${EC2InstanceNameParameter}"
+          
+Outputs:
+  VPCDetails:
+    Description: VPC Details Information
+    Value: !Join [ "\n", [ 
+      "VPC ID:", !Ref VPC, 
+      "VPC Name:", !Ref VPCNameParameter, 
+      "CIDR Block:", !Ref CidrBlockParameter 
+    ]]
+    
+  EC2InstanceDetails:
+    Description: EC2 Instance Details
+    Value: !Join [ " ", [
+      "Instance ID:", !Ref EC2Instance,
+      "Public IP:", !GetAtt EC2Instance.PublicIp,
+      "Private IP:", !GetAtt EC2Instance.PrivateIp
+    ]]
+    
+  SSHAccess:
+    Description: SSH Command to access the instance
+    Value: !Sub "ssh -i ${KeyNameParameter}.pem ubuntu@${EC2Instance.PublicIp}"
