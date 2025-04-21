@@ -1,0 +1,368 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create VPC with Public and Private Route Tables
+
+Parameters:
+
+  ###################################################################################
+  ##                    Parameters For Networking (VPC)                            ##
+  ###################################################################################
+
+  VPCCidr:
+    Type: String
+    Default: 192.168.1.0/24
+    Description: the cidr (classless inter domain route) blocks for vpc
+
+  VPCName:
+    Type: String
+    Default: lksn-cc-2025-vpc 
+    Description: the name for vpc 
+
+  SubnetPrivateOneCidr:
+    Type: String
+    Description: the cidr for subnet private one must be valid format can calculate in https://cidr.xyz
+    Default: 192.168.1.0/26
+
+  SubnetPrivateTwoCidr:
+    Type: String
+    Description: the cidr for subnet private two must be valid format can calculate in https://cidr.xyz
+    Default: 192.168.1.128/26
+
+  SubnetPublicOneCidr:
+    Type: String
+    Description: the cidr for subnet public one must be valid format can calculate in https://cidr.xyz
+    Default: 192.168.1.64/26
+
+  SubnetPublicTwoCidr:
+    Type: String
+    Description: the cidr for subnet public two must be valid format can calculate in https://cidr.xyz
+    Default: 192.168.1.192/26
+
+  ###################################################################################
+  ##                    Parameters For Instance (EC2)                              ##
+  ###################################################################################
+
+  EC2InstanceType:
+    Type: String
+    Description: the instance type for ec2 instance
+    Default: t2.micro # free tier
+
+  EC2AMIID:
+    Type: AWS::EC2::Image::Id # change to String if not working
+    Description: the ami id for ec2 instance
+    Default: ami-07a6f770277670015 # AWS Linux Server 
+  
+  EC2KeyPairName:
+    Type: String
+    Description: the name of ec2 key pair
+    Default: lksn-keypair
+  
+Resources:
+
+  ###################################################################################
+  ##                    Resources For Networking (VPC)                             ##
+  ###################################################################################
+
+  # 1. Create VPC
+  CreateVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Ref VPCName
+  # 2. Create Internet Gateway
+  CreateInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-igw"
+  
+  # 3. Attach Internet Gateway to VPC
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref CreateVPC
+      InternetGatewayId: !Ref CreateInternetGateway
+    
+  # 4. Create Public Route, Route Table and Subnet
+  CreatePublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CreateVPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-public-rtb"
+  
+  CreatePublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref CreatePublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0 
+      GatewayId: !Ref CreateInternetGateway
+
+  CreatePublicSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CreateVPC
+      AvailabilityZone: !Select [0, !GetAZs ]
+      CidrBlock: !Ref SubnetPublicOneCidr
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-public-subnet-1"
+  
+  CreatePublicSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CreateVPC
+      AvailabilityZone: !Select [1, !GetAZs ]
+      CidrBlock: !Ref SubnetPublicTwoCidr
+      MapPublicIpOnLaunch: true      
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-public-subnet-2"
+
+  AssociationPublicRouteTableToSubnetOne:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref CreatePublicRouteTable
+      SubnetId: !Ref CreatePublicSubnetOne
+
+  AssociationPublicRouteTableToSubnetTwo:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref CreatePublicRouteTable
+      SubnetId: !Ref CreatePublicSubnetTwo 
+  
+  # 5. Create Private Route, NAT Gateway, EIP, Route Table and Subnet
+  CreateEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  CreateNATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref CreatePublicSubnetOne
+      AllocationId: !GetAtt CreateEIP.AllocationId
+
+
+  CreatePrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CreateVPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-private-rtb"
+
+  CreatePrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref CreatePrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref CreateNATGateway
+
+  CreatePrivateSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CreateVPC
+      AvailabilityZone: !Select [0, !GetAZs ]
+      CidrBlock: !Ref SubnetPrivateOneCidr
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-private-subnet-1"
+  
+  CreatePrivateSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CreateVPC
+      AvailabilityZone: !Select [1, !GetAZs ]
+      CidrBlock: !Ref SubnetPrivateTwoCidr
+      MapPublicIpOnLaunch: false      
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-private-subnet-2"
+
+  AssociationPrivateRouteTableToSubnetOne:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref CreatePrivateRouteTable
+      SubnetId: !Ref CreatePrivateSubnetOne
+
+  AssociationPrivateRouteTableToSubnetTwo:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref CreatePrivateRouteTable
+      SubnetId: !Ref CreatePrivateSubnetTwo 
+
+  # 6. S3 Endpoint
+  CreateS3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: 'Gateway'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: !Ref CreateVPC
+      RouteTableIds: 
+        - !Ref CreatePublicRouteTable
+        - !Ref CreatePrivateRouteTable
+
+
+  # 7. Security Group
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${VPCName}-ssh-sg"
+      GroupDescription: Security group for the EC2 instance SSH Forward Server
+      VpcId: !Ref CreateVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: 22
+          ToPort: 22
+          Description: Allow SSH access
+      Tags:
+        - Key: Name
+          Value: SSH Security Group
+      
+  ELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${VPCName}-elb-sg"
+      GroupDescription: Security group for the Elastic Load Balancer
+      VpcId: !Ref CreateVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: 80
+          ToPort: 80
+          Description: Allow HTTP access
+
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          FromPort: 443
+          ToPort: 443
+          Description: Allow HTTPS access  
+      Tags:
+        - Key: Name
+          Value: Elastic Load Balancer Security Group
+
+  FrontEndAppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${VPCName}-fe-app-sg"
+      GroupDescription: Security group for the EC2 Instance Front End App
+      VpcId: !Ref CreateVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          SourceSecurityGroupId: !Ref ELBSecurityGroup
+          FromPort: 80
+          ToPort: 80
+          Description: Allow HTTP access only Elastic Load Balancer
+
+        - IpProtocol: tcp
+          SourceSecurityGroupId: !Ref ELBSecurityGroup
+          FromPort: 443
+          ToPort: 443
+          Description: Allow HTTPS access only Elastic Load Balancer  
+      Tags:
+        - Key: Name
+          Value: Front End Security Group
+
+
+  BackEndAppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${VPCName}-be-app-sg"
+      GroupDescription: Security group for the EC2 Instance Back End App
+      VpcId: !Ref CreateVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          SourceSecurityGroupId: !Ref ELBSecurityGroup
+          FromPort: 80
+          ToPort: 80
+          Description: Allow HTTP access only Elastic Load Balancer
+
+        - IpProtocol: tcp
+          SourceSecurityGroupId: !Ref ELBSecurityGroup
+          FromPort: 443
+          ToPort: 443
+          Description: Allow HTTPS access only Elastic Load Balancer  
+      Tags:
+        - Key: Name
+          Value: Back End Security Group
+
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${VPCName}-rds-sg"
+      GroupDescription: Security Group for the RDS Service
+      VpcId: !Ref CreateVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          SourceSecurityGroupId: !Ref BackEndAppSecurityGroup
+          FromPort: 3306
+          ToPort: 3306
+          Description: Allow MySQL access from Back End App Security Group
+      Tags:
+        - Key: Name
+          Value: RDS Security Group
+
+  
+  ELCSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${VPCName}-elc-sg"
+      GroupDescription: Security Group for the Elasticache Service
+      VpcId: !Ref CreateVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          SourceSecurityGroupId: !Ref BackEndAppSecurityGroup
+          FromPort: 6379
+          ToPort: 6379
+          Description: Allow Redis access from Back End App Security Group
+      Tags:
+        - Key: Name
+          Value: Elasticache Security Group
+
+  # 8. Create SSH Key Pair and EC2 SSH Forward Server (Public)
+  CreateKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Ref EC2KeyPairName
+      KeyFormat: "pem"
+      KeyType: "ed25519"
+      Tags: 
+        - Key: "Name"
+          Value: !Ref EC2KeyPairName
+
+  CreateEC2SSHForwardServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref EC2InstanceType
+      KeyName: !Ref EC2KeyPairName
+      ImageId: !Ref EC2AMIID
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          GroupSet:
+            - !Ref SSHSecurityGroup
+          SubnetId: !Ref CreatePublicSubnetOne
+
+Outputs:
+  EC2SSHForwardServer: 
+    Description: EC2 SSH Forward Server Instance Details
+    Value: !Join [ " ", [
+      "Instance ID:", !Ref CreateEC2SSHForwardServer,
+      "Public IP:", !GetAtt CreateEC2SSHForwardServer.PublicIp,
+      "DNS Name:", !GetAtt CreateEC2SSHForwardServer.PublicDnsName,
+      "Private IP:", !GetAtt CreateEC2SSHForwardServer.PrivateIp
+    ]]
+
+  EC2KeyPair:
+    Description: AWS CLI command to describe Key Pair
+    Value: !Sub "aws ec2 describe-key-pairs --key-names ${EC2KeyPairName}"
