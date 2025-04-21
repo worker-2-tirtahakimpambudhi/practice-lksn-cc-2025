@@ -1,0 +1,176 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create example VPC with Public and Private Route Tables
+
+Parameters:
+
+  VPCName:
+    Type: String
+    Default: lksn-vpc
+    Description: The name of VPC
+  
+  VPCCidrBlock:
+    Type: String
+    Default: 192.168.1.0/24
+    Description: CIDR Block for VPC
+
+Resources:
+
+  # 1. Create VPC
+  CreateVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCidrBlock
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Ref VPCName
+
+  # 2. Create Internet Gateway
+  CreateInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-igw"
+
+  # 3. Attach Internet Gateway
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref CreateVPC
+      InternetGatewayId: !Ref CreateInternetGateway
+
+  # 4. Create Public Route Table
+  CreatePublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CreateVPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-public-rtb"
+
+  # 5. Create Public Route
+  CreatePublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref CreatePublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref CreateInternetGateway
+
+  # 6. Create Elastic IP for NAT
+  CreateNatEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  # 7. Create First Public Subnet
+  FirstPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CreateVPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 192.168.1.0/26
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-public-subnet-1"
+
+  # 8. Create Second Public Subnet
+  SecondPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CreateVPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 192.168.1.64/26
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-public-subnet-2"
+
+  # 9. Create First Private Subnet
+  FirstPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CreateVPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 192.168.1.128/26
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-private-subnet-1"
+
+  # 10. Create Second Private Subnet
+  SecondPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CreateVPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 192.168.1.192/26
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-private-subnet-2"
+
+  # 11. Create NAT Gateway in First Public Subnet
+  CreateNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt CreateNatEIP.AllocationId
+      SubnetId: !Ref FirstPublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-natgw"
+
+  # 12. Create Private Route Table
+  CreatePrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CreateVPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-private-rtb"
+
+  # 13. Create Private Route (0.0.0.0/0 via NAT)
+  CreatePrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref CreatePrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref CreateNatGateway
+
+  # 14. Associate Public Subnets to Public Route Table
+  FirstPublicSubnetRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref FirstPublicSubnet
+      RouteTableId: !Ref CreatePublicRouteTable
+
+  SecondPublicSubnetRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SecondPublicSubnet
+      RouteTableId: !Ref CreatePublicRouteTable
+
+  # 15. Associate Private Subnets to Private Route Table
+  FirstPrivateSubnetRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref FirstPrivateSubnet
+      RouteTableId: !Ref CreatePrivateRouteTable
+
+  SecondPrivateSubnetRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SecondPrivateSubnet
+      RouteTableId: !Ref CreatePrivateRouteTable
+
+Outputs:
+  VPCId:
+    Value: !Ref CreateVPC
+  PublicRouteTableId:
+    Value: !Ref CreatePublicRouteTable
+  PrivateRouteTableId:
+    Value: !Ref CreatePrivateRouteTable
+  NatGatewayId:
+    Value: !Ref CreateNatGateway
