@@ -1,4 +1,7 @@
 cert/*
 commit.sh
-lambda/output/*
 .git/*
+
+**/node_modules/*
+**/*.zip
+**/output/*
