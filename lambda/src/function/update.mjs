@@ -4,7 +4,7 @@ import { query } from './lib/utils.mjs';
 export const handler = async (event) => {
     try {
         const id = event.pathParameters.id;
-        const body = JSON.parse(event.body);
+        const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
         const { error, value } = todoModel.validate(body);
 
         if (error) {
