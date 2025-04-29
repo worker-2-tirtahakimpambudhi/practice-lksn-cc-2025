@@ -19,6 +19,15 @@ export async function createConnection() {
 export async function query(rawQuery, values = []) {
   const connection = await createConnection();
   try {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS ${process.env.DB_TABLE_NAME} (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        todo VARCHAR(255) NOT NULL,
+        description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
     return values.length
       ? await connection.execute(rawQuery, values)
       : await connection.execute(rawQuery);
