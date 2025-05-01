@@ -1,4 +1,3 @@
-
 Resources:
   LambdaFunctionRole:
     Type: AWS::IAM::Role
@@ -10,9 +9,10 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: 'sts:AssumeRole'
-          # Add Create Network Interface
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole'
 Outputs:
   LambdaFunctionRoleArn:
     Value: !GetAtt LambdaFunctionRole.Arn
+ 
