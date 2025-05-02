@@ -120,7 +120,7 @@ Resources:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: This subnet group for rds instance
-      SubnetIds: 
+      SubnetIds:
         - !Ref RDSSubnetPrivateOne
         - !Ref RDSSubnetPrivateTwo
       Tags:
@@ -131,7 +131,7 @@ Resources:
     Type: AWS::ElastiCache::SubnetGroup
     Properties:
       Description: This subnet group for elasticache instance
-      SubnetIds: 
+      SubnetIds:
         - !Ref ElasticacheSubnetPrivateOne
         - !Ref ElasticacheSubnetPrivateTwo
       Tags:
@@ -175,7 +175,7 @@ Resources:
         - Key: Name
           Value: !Ref ElasticacheInstanceName
     DeletionPolicy: Delete
-  
+
 Outputs:
 
   ###################################################################################
@@ -185,11 +185,17 @@ Outputs:
 
   RDSInstanceEndpointAddress:
     Description: The endpoint of the rds instance
-    Value: !Join [':', [!GetAtt CreateRDSInstance.Endpoint.Address, !GetAtt CreateRDSInstance.Endpoint.Port]]
+    Value: !Join
+      - ':'
+      - - !GetAtt CreateRDSInstance.Endpoint.Address
+        - !GetAtt CreateRDSInstance.Endpoint.Port
 
   ElasticacheClusterEndpointAddress:
     Description: The endpoint of the elasticache instance
-    Value: !Join [':', [!GetAtt CreateElasticacheCluster.ConfigurationEndpoint.Address, !GetAtt CreateElasticacheCluster.ConfigurationEndpoint.Port]]
+    Value: !Join
+      - ':'
+      - - !GetAtt CreateElasticacheCluster.ConfigurationEndpoint.Address
+        - !GetAtt CreateElasticacheCluster.ConfigurationEndpoint.Port
 
   RDSSubnetGroupName:
     Description: The name of the rds subnet group
