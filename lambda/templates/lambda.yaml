@@ -68,6 +68,16 @@ Parameters:
     Default: getAll.handler
     Description: The name lambda handler for execute the function
 
+  LambdaFunctionMethodPOSTHandler:
+    Type: String
+    Default: create.handler
+    Description: The name lambda handler for execute the function
+
+  LambdaFunctionMethodPUTHandler:
+    Type: String
+    Default: update.handler
+    Description: The name lambda handler for execute the function
+
   LambdaFunctionMemory:
     Type: Number
     Default: 128
@@ -90,12 +100,49 @@ Parameters:
     Type: String
     Default: getAll.zip
 
+  LambdaFunctionS3KeyMethodPOST:
+    Type: String
+    Default: create.zip
+
+  LambdaFunctionS3KeyMethodPUT:
+    Type: String
+    Default: update.zip
+
+  LambdaFunctionMethodGETByIDHandler:
+    Type: String
+    Default: getById.handler
+    Description: The handler name for GET by ID Lambda
+
+  LambdaFunctionMethodDELETEHandler:
+    Type: String
+    Default: delete.handler
+    Description: The handler name for DELETE Lambda
+
+  LambdaFunctionS3KeyMethodGETByID:
+    Type: String
+    Default: getById.zip
+
+  LambdaFunctionS3KeyMethodDELETE:
+    Type: String
+    Default: delete.zip
+
+  LambdaFunctionSecurityGroup:
+    Type: String
+    Description: The security group id for attach to lambda function
+
+  LambdaFunctionSubnetOne:
+    Type: String
+    Description: The subnet one for attach to lambda function
+
+  LambdaFunctionSubnetTwo:
+    Type: String
+    Description: The subnet two for attach to lambda function
   # LambdaFunctionRoleArn:
   #   Type: String
   #   Description: The iam role for lambda function
 
-#### TODO
-#### Attach to Lambda to VPC
+  #### TODO
+  #### Attach to Lambda to VPC
 
 Resources:
   ###################################################################################
@@ -114,15 +161,14 @@ Resources:
         - !Ref LambdaRuntime
       LicenseInfo: MIT
 
-
   LambdaFunctionMethodGET:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub
         - ${LambdaBaseFunctionName}-method-get
-        -  LambdaBaseFunctionName: !Ref LambdaBaseFunctionName
+        - LambdaBaseFunctionName: !Ref LambdaBaseFunctionName
       Handler: !Ref LambdaFunctionMethodGETHandler
-      Role: arn:aws:iam::277789128961:role/iam-LambdaFunctionRole-12345678 # Fake replace to actual value
+      Role: arn:aws:iam::277789128961:role/iam-12345  # Fake replace to actual value
       Code:
         S3Bucket: !Ref LambdaS3Bucket
         S3Key: !Ref LambdaFunctionS3KeyMethodGET
@@ -139,6 +185,132 @@ Resources:
           DB_NAME: !Ref DBName
           DB_PASSWORD: !Ref DBPassword
           DB_TABLE_NAME: !Ref DBTableName
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaFunctionSecurityGroup
+        SubnetIds:
+          - !Ref LambdaFunctionSubnetOne
+          - !Ref LambdaFunctionSubnetTwo
+
+  LambdaFunctionMethodPOST:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub
+        - ${LambdaBaseFunctionName}-method-post
+        - LambdaBaseFunctionName: !Ref LambdaBaseFunctionName
+      Handler: !Ref LambdaFunctionMethodPOSTHandler
+      Role: arn:aws:iam::277789128961:role/iam-12345  # Fake replace to actual value
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaFunctionS3KeyMethodPOST
+      Runtime: !Ref LambdaRuntime
+      MemorySize: !Ref LambdaFunctionMemory
+      Architectures:
+        - !Ref LambdaArchitecture
+      Layers:
+        - !Ref LambdaLayer
+      Environment:
+        Variables:
+          DB_HOST: !Ref DBHost
+          DB_USER: !Ref DBUser
+          DB_NAME: !Ref DBName
+          DB_PASSWORD: !Ref DBPassword
+          DB_TABLE_NAME: !Ref DBTableName
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaFunctionSecurityGroup
+        SubnetIds:
+          - !Ref LambdaFunctionSubnetOne
+          - !Ref LambdaFunctionSubnetTwo
+
+  LambdaFunctionMethodPUT:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub
+        - ${LambdaBaseFunctionName}-method-put
+        - LambdaBaseFunctionName: !Ref LambdaBaseFunctionName
+      Handler: !Ref LambdaFunctionMethodPUTHandler
+      Role: arn:aws:iam::277789128961:role/iam-12345  # Fake replace to actual value
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaFunctionS3KeyMethodPUT
+      Runtime: !Ref LambdaRuntime
+      MemorySize: !Ref LambdaFunctionMemory
+      Architectures:
+        - !Ref LambdaArchitecture
+      Layers:
+        - !Ref LambdaLayer
+      Environment:
+        Variables:
+          DB_HOST: !Ref DBHost
+          DB_USER: !Ref DBUser
+          DB_NAME: !Ref DBName
+          DB_PASSWORD: !Ref DBPassword
+          DB_TABLE_NAME: !Ref DBTableName
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaFunctionSecurityGroup
+        SubnetIds:
+          - !Ref LambdaFunctionSubnetOne
+          - !Ref LambdaFunctionSubnetTwo
+
+  LambdaFunctionMethodGETByID:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${LambdaBaseFunctionName}-method-getById
+      Handler: !Ref LambdaFunctionMethodGETByIDHandler
+      Role: arn:aws:iam::277789128961:role/iam-12345 
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaFunctionS3KeyMethodGETByID
+      Runtime: !Ref LambdaRuntime
+      MemorySize: !Ref LambdaFunctionMemory
+      Architectures:
+        - !Ref LambdaArchitecture
+      Layers:
+        - !Ref LambdaLayer
+      Environment:
+        Variables:
+          DB_HOST: !Ref DBHost
+          DB_USER: !Ref DBUser
+          DB_NAME: !Ref DBName
+          DB_PASSWORD: !Ref DBPassword
+          DB_TABLE_NAME: !Ref DBTableName
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaFunctionSecurityGroup
+        SubnetIds:
+          - !Ref LambdaFunctionSubnetOne
+          - !Ref LambdaFunctionSubnetTwo
+
+  LambdaFunctionMethodDELETE:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${LambdaBaseFunctionName}-method-delete
+      Handler: !Ref LambdaFunctionMethodDELETEHandler
+      Role: arn:aws:iam::277789128961:role/iam-12345 
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaFunctionS3KeyMethodDELETE
+      Runtime: !Ref LambdaRuntime
+      MemorySize: !Ref LambdaFunctionMemory
+      Architectures:
+        - !Ref LambdaArchitecture
+      Layers:
+        - !Ref LambdaLayer
+      Environment:
+        Variables:
+          DB_HOST: !Ref DBHost
+          DB_USER: !Ref DBUser
+          DB_NAME: !Ref DBName
+          DB_PASSWORD: !Ref DBPassword
+          DB_TABLE_NAME: !Ref DBTableName
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaFunctionSecurityGroup
+        SubnetIds:
+          - !Ref LambdaFunctionSubnetOne
+          - !Ref LambdaFunctionSubnetTwo
 
   ###################################################################################
   ##                        Resources For API Gateway                              ##
@@ -157,7 +329,14 @@ Resources:
     Properties:
       RestApiId: !Ref RestApi
       ParentId: !GetAtt RestApi.RootResourceId
-      PathPart: 'todolist'
+      PathPart: todolist
+
+  ApiGatewayTodoListItemResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !Ref ApiGatewayTodoListResource
+      PathPart: '{id}'
 
   ApiGatewayMethodGET:
     Type: AWS::ApiGateway::Method
@@ -173,24 +352,124 @@ Resources:
           - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
           - LambdaFunctionArn: !GetAtt LambdaFunctionMethodGET.Arn
 
+  ApiGatewayMethodPOST:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref ApiGatewayTodoListResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt LambdaFunctionMethodPOST.Arn
 
-  LambdaPermissionForApiGateway:
+  ApiGatewayMethodGETByID:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref ApiGatewayTodoListItemResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt LambdaFunctionMethodGETByID.Arn
+
+  ApiGatewayMethodPUT:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref ApiGatewayTodoListItemResource
+      HttpMethod: PUT
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt LambdaFunctionMethodPUT.Arn
+
+  ApiGatewayMethodDELETE:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref ApiGatewayTodoListItemResource
+      HttpMethod: DELETE
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt LambdaFunctionMethodDELETE.Arn
+
+  LambdaPermissionForApiGatewayGET:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:InvokeFunction
       FunctionName: !Ref LambdaFunctionMethodGET
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub 
-        - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*/*/*
+      SourceArn: !Sub
+        - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*/GET/todolist
+        - RestApi: !Ref RestApi
+
+
+  LambdaPermissionForApiGatewayPOST:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaFunctionMethodPOST
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub
+        - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*/POST/todolist
+        - RestApi: !Ref RestApi
+
+  LambdaPermissionForApiGatewayGETById:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaFunctionMethodGETByID
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub
+        - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*/GET/todolist/*
+        - RestApi: !Ref RestApi
+
+  LambdaPermissionForApiGatewayPUT:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaFunctionMethodPUT
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub
+        - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*/PUT/todolist/*
+        - RestApi: !Ref RestApi
+
+  LambdaPermissionForApiGatewayDELETE:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaFunctionMethodDELETE
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub
+        - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*/DELETE/todolist/*
         - RestApi: !Ref RestApi
 
   ApiGatewayDeployment:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
       - ApiGatewayMethodGET
+      - ApiGatewayMethodPOST
+      - ApiGatewayMethodPUT
+      - ApiGatewayMethodGETByID
+      - ApiGatewayMethodDELETE
     Properties:
       RestApiId: !Ref RestApi
-      Description: 'Deployment for REST API'
+      Description: Deployment for REST API
 
   ApiGatewayStage:
     Type: AWS::ApiGateway::Stage
@@ -202,7 +481,7 @@ Resources:
 Outputs:
   APIGatewayURL:
     Description: URL of the API Gateway endpoint
-    Value: !Sub 
+    Value: !Sub
       - https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${DeploymentStageName}/
       - RestApi: !Ref RestApi
         DeployStageName: !Ref DeploymentStageName
@@ -212,6 +491,18 @@ Outputs:
   LambdaFunctionMethodGETArn:
     Description: ARN of the GET method Lambda function
     Value: !GetAtt LambdaFunctionMethodGET.Arn
+  LambdaFunctionMethodGETByIdArn:
+    Description: ARN of the GET method Lambda function
+    Value: !GetAtt LambdaFunctionMethodGETByID.Arn
+  LambdaFunctionMethodPOSTArn:
+    Description: ARN of the GET method Lambda function
+    Value: !GetAtt LambdaFunctionMethodPOST.Arn
+  LambdaFunctionMethodPUTArn:
+    Description: ARN of the GET method Lambda function
+    Value: !GetAtt LambdaFunctionMethodPUT.Arn
+  LambdaFunctionMethodDELETEArn:
+    Description: ARN of the GET method Lambda function
+    Value: !GetAtt LambdaFunctionMethodDELETE.Arn
   LambdaLayerArn:
     Description: ARN of the Lambda Layer
     Value: !Ref LambdaLayer
