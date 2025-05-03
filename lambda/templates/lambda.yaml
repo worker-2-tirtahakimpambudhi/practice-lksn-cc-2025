@@ -3,7 +3,7 @@ Parameters:
   ###################################################################################
   ##                            Parameters For Lambda                              ##
   ###################################################################################
-  
+
   LambdaLayerName:
     Type: String
     Default: lksn-restapi-layer
@@ -19,17 +19,17 @@ Parameters:
 
   LambdaRuntime:
     Type: String
-    Default: nodejs22.x
+    Default: nodejs22.xx
     Description: The runtime of the Lambda function
-    AllowValues:
+    AllowedValues:
       - nodejs22.xx
       - nodejs20.xx
       - nodejs18.xx
 
   LambdaBaseFunctionName:
-      Type: String
-      Default: lksn-restapi
-      Description: The name of the Lambda function
+    Type: String
+    Default: lksn-restapi
+    Description: The name of the Lambda function
 
   LambdaArchitecture:
     Type: String
@@ -50,12 +50,16 @@ Parameters:
     Description: The memory size of the Lambda function
 
   LambdaSubnetsId:
-    Type: List<String> 
-    Description: The subnet idffor lambda function
+    Type: List<String>
+    Description: The subnet id for lambda function
 
-  LambdaSecurityGroupId: 
+  LambdaSecurityGroupId:
     Type: String
-    Descriptiom: The security group id for lambda function
+    Description: The security group id for lambda function
+
+  LambdaExecutionRoleArn:
+    Type: String
+    Description: The role arn for attach to lambda function
 
 Resources:
 
@@ -74,13 +78,13 @@ Resources:
       CompatibleRuntimes:
         - !Ref LambdaRuntime
       LicenseInfo: MIT
-  
-  CreateLambdaFunction:
+
+  CreateLambdaFunctionMethodGET:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "${AWS::StackName}-${LambdaBaseFunctionName}"
+      FunctionName: !Sub ${AWS::StackName}-${LambdaBaseFunctionName}
       Handler: index.handler
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !Ref LambdaExecutionRoleArn
       Code:
         ZipFile: !Ref LambdaFunctionZipFileMethodGET
       Runtime: !Ref LambdaRuntime
@@ -92,5 +96,21 @@ Resources:
       VpcConfig:
         SubnetIds: !Ref LambdaSubnetsId
         SecurityGroupIds:
-          - !Ref RDSSecurityGroupId
-
+          - !Ref LambdaSecurityGroupId
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub
+        - ${ResourceName} From Stack ${AWS::StackName}
+        - ResourceName: Api
+      StageName: Prod
+      DefinitionBody:
+        openapi: '3.0'
+        info: {}
+        paths:
+          /:
+            get:
+              responses: {}
+      EndpointConfiguration: REGIONAL
+      TracingEnabled: true
+Transform: AWS::Serverless-2016-10-31
