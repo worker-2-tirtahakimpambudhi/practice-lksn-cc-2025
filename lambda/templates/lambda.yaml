@@ -47,6 +47,11 @@ Parameters:
     Default: getAll.zip
     Description: The name s3 key for source code lambda function
 
+  LambdaFunctionMethodGETHandler:
+    Type: String
+    Default: getAll.handler
+    Description: The handler of the Lambda function
+
   LambdaFunctionMemory:
     Type: Number
     Default: 128
@@ -109,6 +114,7 @@ Resources:
         S3Key: !Ref LambdaFunctionS3KeyMethodGET
       Runtime: !Ref LambdaRuntime
       MemorySize: !Ref LambdaFunctionMemory
+      Handler: !Ref LambdaFunctionMethodGETHandler
       Architectures:
         - !Ref LambdaArchitecture
       Layers:
