@@ -9,22 +9,25 @@ Parameters:
     Default: lksn-restapi-layer
     Description: The name of the Lambda layer
 
-  LambdaLayerS3Bucket:
+  LambdaS3Bucket:
     Type: String
+    Default: lksncc-2025-s3-bucket
     Description: The name s3 bucket for source code lambda layer
 
   LambdaLayerS3Key:
     Type: String
+    Default: layer.zip
     Description: The name s3 key for source code lambda layer
 
   LambdaRuntime:
     Type: String
-    Default: nodejs22.xx
+    Default: nodejs22.x
     Description: The runtime of the Lambda function
     AllowedValues:
-      - nodejs22.xx
-      - nodejs20.xx
-      - nodejs18.xx
+      - nodejs22.x
+      - nodejs20.x
+      - nodejs18.x
+
 
   LambdaBaseFunctionName:
     Type: String
@@ -39,10 +42,10 @@ Parameters:
       - x86_64
       - arm64
 
-  LambdaFunctionZipFileMethodGET:
+  LambdaFunctionS3KeyMethodGET:
     Type: String
-    Default: file://src/lambda_get_api.zip
-    Description: The name of the Lambda function for GET
+    Default: getAll.zip
+    Description: The name s3 key for source code lambda function
 
   LambdaFunctionMemory:
     Type: Number
@@ -61,6 +64,22 @@ Parameters:
     Type: String
     Description: The role arn for attach to lambda function
 
+  DBHost:
+    Type: String
+    Description: RDS Host for application connect to database
+
+  DBName:
+    Type: String
+    Description: RDS Database Name for application connect to database
+
+  DBUser:
+    Type: String
+    Description: RDS Database User for application connect to database
+
+  DBPassword:
+    Type: String
+    Description: RDS Database Password for application connect to database
+
 Resources:
 
   ###################################################################################
@@ -73,7 +92,7 @@ Resources:
       LayerName: !Ref LambdaLayerName
       Description: Lambda layer for the application
       Content:
-        S3Bucket: !Ref LambdaLayerS3Bucket
+        S3Bucket: !Ref LambdaS3Bucket
         S3Key: !Ref LambdaLayerS3Key
       CompatibleRuntimes:
         - !Ref LambdaRuntime
@@ -82,11 +101,12 @@ Resources:
   CreateLambdaFunctionMethodGET:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub ${AWS::StackName}-${LambdaBaseFunctionName}
+      FunctionName: !Sub ${LambdaBaseFunctionName}-GET
       Handler: index.handler
       Role: !Ref LambdaExecutionRoleArn
       Code:
-        ZipFile: !Ref LambdaFunctionZipFileMethodGET
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaFunctionS3KeyMethodGET
       Runtime: !Ref LambdaRuntime
       MemorySize: !Ref LambdaFunctionMemory
       Architectures:
@@ -97,20 +117,28 @@ Resources:
         SubnetIds: !Ref LambdaSubnetsId
         SecurityGroupIds:
           - !Ref LambdaSecurityGroupId
-  Api:
-    Type: AWS::Serverless::Api
-    Properties:
-      Name: !Sub
-        - ${ResourceName} From Stack ${AWS::StackName}
-        - ResourceName: Api
-      StageName: Prod
-      DefinitionBody:
-        openapi: '3.0'
-        info: {}
-        paths:
-          /:
-            get:
-              responses: {}
-      EndpointConfiguration: REGIONAL
-      TracingEnabled: true
-Transform: AWS::Serverless-2016-10-31
+      Environment:
+        Variables:
+          DB_HOST: !Ref DBHost
+          DB_USER: !Ref DBUser
+          DB_NAME: !Ref DBName
+          DB_PASSWORD: !Ref DBPassword
+
+          
+#   Api:
+#     Type: AWS::Serverless::Api
+#     Properties:
+#       Name: !Sub
+#         - ${ResourceName} From Stack ${AWS::StackName}
+#         - ResourceName: Api
+#       StageName: Prod
+#       DefinitionBody:
+#         openapi: '3.0'
+#         info: {}
+#         paths:
+#           /:
+#             get:
+#               responses: {}
+#       EndpointConfiguration: REGIONAL
+#       TracingEnabled: true
+# Transform: AWS::Serverless-2016-10-31
