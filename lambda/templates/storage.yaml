@@ -1,21 +1,29 @@
 Parameters:
+  S3BucketName:
+    Type: String
+    Description: The name of the S3 bucket for Lambda layer source code
+    Default: lksncc-2025-s3-bucket
 
-    BucketName:
-      Type: String
-      Description: The name of the S3 bucket for Lambda layer source code
-      Default: lksncc-2025-s3-bucket
-
-
+  S3ObjectPath:
+    Type: String
+    Description: The path file to upload s3 bucket must be absolute path
 
 Resources:
+  CreateS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Name
+          Value: !Ref S3BucketName
+    DeletionPolicy: Delete
 
-    CreateS3Bucket:
-      Type: AWS::S3::Bucket
-      Properties:
-        BucketName: !Ref BucketName
-        VersioningConfiguration:
-          Status: Enabled
-        Tags:
-          - Key: Name
-            Value: !Ref BucketName
-        DeletePolicy: Delete
+Outputs:
+  UploadObjectCommand:
+    Description: Command AWS CLI To Upload Object At S3 Bucket
+    Value: !Sub
+      - aws s3 cp --recursive ${S3ObjectPath} s3://${S3BucketName}/
+      - S3ObjectPath: !Ref S3ObjectPath
+        S3BucketName: !Ref S3BucketName
