@@ -24,6 +24,6 @@ Outputs:
   UploadObjectCommand:
     Description: Command AWS CLI To Upload Object At S3 Bucket
     Value: !Sub
-      - aws s3 cp --recursive ${S3ObjectPath} s3://${S3BucketName}/
+      - aws s3 cp --recursive ${S3ObjectPath} s3://${S3BucketName}/ --recursive --exclude "*" --include "*.zip"
       - S3ObjectPath: !Ref S3ObjectPath
         S3BucketName: !Ref S3BucketName
