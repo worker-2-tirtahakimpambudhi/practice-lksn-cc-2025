@@ -1,0 +1,164 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Environment:
+      Variables:
+        DB_HOST: !Ref DBHost
+        DB_USER: !Ref DBUser
+        DB_NAME: !Ref DBName
+        DB_PASSWORD: !Ref DBPassword
+    MemorySize: !Ref LambdaFunctionMemory
+    Layers:
+      - !Ref LambdaLayer
+    Runtime: !Ref LambdaRuntime
+    Architectures:
+      - !Ref LambdaArchitecture
+
+Parameters:
+
+  ###################################################################################
+  ##                            Parameters For Lambda                              ##
+  ###################################################################################
+
+
+  DBHost:
+    Type: String
+    Description: RDS Host for application connect to database
+
+  DBName:
+    Type: String
+    Description: RDS Database Name for application connect to database
+
+  DBUser:
+    Type: String
+    Description: RDS Database User for application connect to database
+
+  DBPassword:
+    Type: String
+    Description: RDS Database Password for application connect to database
+
+  DBTableName:
+    Type: String
+
+  LambdaLayerName:
+    Type: String
+    Default: lksn-restapi-layer
+    Description: The name of the Lambda layer
+
+  APIGatewayName:
+    Type: String
+    Default: REST-API-Todolist
+    Description: The name of api gateway
+
+  APIGatewayStageName:
+    Type: String
+    Default: prod
+    Description: The stage name of the API Gateway
+    AllowedValues:
+      - prod
+      - dev
+      - test
+      - staging
+
+
+  DeploymentStageName:
+    Type: String
+    Default: prod
+    Description: The stage name of the Deployment
+    AllowedValues:
+      - prod
+      - dev
+      - test
+      - staging
+
+  LambdaS3Bucket:
+    Type: String
+    Default: lksncc-2025-s3-bucket
+    Description: The name s3 bucket for source code lambda layer
+
+  LambdaLayerS3Key:
+    Type: String
+    Default: layer.zip
+    Description: The name s3 key for source code lambda layer
+
+  LambdaRuntime:
+    Type: String
+    Default: nodejs22.x
+    Description: The runtime of the Lambda function
+    AllowedValues:
+      - nodejs22.x
+      - nodejs20.x
+      - nodejs18.x
+
+  LambdaFunctionMethodGETHandler:
+    Type: String
+    Default: getAll.handler
+    Description: The name lambda handler for execute the function
+
+  LambdaFunctionMemory:
+    Type: Number
+    Default: 128
+    Description: The memory size mb lambda function
+
+  LambdaBaseFunctionName:
+    Type: String
+    Default: lksn-restapi
+    Description: The name of the Lambda function
+
+  LambdaArchitecture:
+    Type: String
+    Default: x86_64
+    Description: The architecture of the Lambda function
+    AllowedValues:
+      - x86_64
+      - arm64
+
+  LambdaFunctionS3KeyMethodGET:
+    Type: String
+    Default: getAll.zip
+
+Resources:
+
+  ###################################################################################
+  ##                            Resources For Lambda                               ##
+  ###################################################################################
+
+  LambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Ref LambdaLayerName
+      Description: The layer for the Lambda function
+      ContentUri:
+        Bucket: !Ref LambdaS3Bucket
+        Key: !Ref LambdaLayerS3Key
+        CompatibleRuntimes:
+          - !Ref LambdaRuntime
+        LicenseInfo: MIT
+
+  LambdaAPIGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Ref APIGatewayName
+      StageName: !Ref APIGatewayStageName
+      EndpointConfiguration: REGIONAL
+
+  LambdaFunctionMethodGET:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${LambdaBaseFunctionName}-method-get
+      Handler: !Ref LambdaFunctionMethodGETHandler
+      CodeUri:
+        Bucket: !Ref LambdaS3Bucket
+        Key: !Ref LambdaFunctionS3KeyMethodGET
+      Events:
+        ApiEvent:
+            Type: Api
+            Properties:
+                Path: /
+                Method: get 
+                RestApiId: 
+                    Ref: LambdaAPIGateway
+
+    
