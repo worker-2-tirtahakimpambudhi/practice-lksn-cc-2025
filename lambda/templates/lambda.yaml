@@ -1,13 +1,48 @@
-Parameters:
+AWSTemplateFormatVersion: '2010-09-09'
 
+Parameters:
   ###################################################################################
   ##                            Parameters For Lambda                              ##
   ###################################################################################
+  DBHost:
+    Type: String
+    Description: RDS Host for application connect to database
+
+  DBName:
+    Type: String
+    Description: RDS Database Name for application connect to database
+
+  DBUser:
+    Type: String
+    Description: RDS Database User for application connect to database
+
+  DBPassword:
+    Type: String
+    Description: RDS Database Password for application connect to database
+    NoEcho: true
+
+  DBTableName:
+    Type: String
 
   LambdaLayerName:
     Type: String
     Default: lksn-restapi-layer
     Description: The name of the Lambda layer
+
+  APIGatewayName:
+    Type: String
+    Default: REST-API-Todolist
+    Description: The name of api gateway
+
+  DeploymentStageName:
+    Type: String
+    Default: prod
+    Description: The stage name of the Deployment
+    AllowedValues:
+      - prod
+      - dev
+      - test
+      - staging
 
   LambdaS3Bucket:
     Type: String
@@ -28,6 +63,15 @@ Parameters:
       - nodejs20.x
       - nodejs18.x
 
+  LambdaFunctionMethodGETHandler:
+    Type: String
+    Default: getAll.handler
+    Description: The name lambda handler for execute the function
+
+  LambdaFunctionMemory:
+    Type: Number
+    Default: 128
+    Description: The memory size mb lambda function
 
   LambdaBaseFunctionName:
     Type: String
@@ -45,57 +89,24 @@ Parameters:
   LambdaFunctionS3KeyMethodGET:
     Type: String
     Default: getAll.zip
-    Description: The name s3 key for source code lambda function
 
-  LambdaFunctionMethodGETHandler:
-    Type: String
-    Default: getAll.handler
-    Description: The handler of the Lambda function
+  # LambdaFunctionRoleArn:
+  #   Type: String
+  #   Description: The iam role for lambda function
 
-  LambdaFunctionMemory:
-    Type: Number
-    Default: 128
-    Description: The memory size of the Lambda function
-
-  LambdaSubnetsId:
-    Type: List<String>
-    Description: The subnet id for lambda function
-
-  LambdaSecurityGroupId:
-    Type: String
-    Description: The security group id for lambda function
-
-  LambdaExecutionRoleArn:
-    Type: String
-    Description: The role arn for attach to lambda function
-
-  DBHost:
-    Type: String
-    Description: RDS Host for application connect to database
-
-  DBName:
-    Type: String
-    Description: RDS Database Name for application connect to database
-
-  DBUser:
-    Type: String
-    Description: RDS Database User for application connect to database
-
-  DBPassword:
-    Type: String
-    Description: RDS Database Password for application connect to database
+#### TODO
+#### Attach to Lambda to VPC
 
 Resources:
-
   ###################################################################################
   ##                            Resources For Lambda                               ##
   ###################################################################################
 
-  CreateLambdaLayer:
+  LambdaLayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
       LayerName: !Ref LambdaLayerName
-      Description: Lambda layer for the application
+      Description: The layer for the Lambda function
       Content:
         S3Bucket: !Ref LambdaS3Bucket
         S3Key: !Ref LambdaLayerS3Key
@@ -103,48 +114,104 @@ Resources:
         - !Ref LambdaRuntime
       LicenseInfo: MIT
 
-  CreateLambdaFunctionMethodGET:
+
+  LambdaFunctionMethodGET:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub ${LambdaBaseFunctionName}-GET
-      Handler: index.handler
-      Role: !Ref LambdaExecutionRoleArn
+      FunctionName: !Sub
+        - ${LambdaBaseFunctionName}-method-get
+        -  LambdaBaseFunctionName: !Ref LambdaBaseFunctionName
+      Handler: !Ref LambdaFunctionMethodGETHandler
+      Role: arn:aws:iam::277789128961:role/iam-LambdaFunctionRole-12345678 # Fake replace to actual value
       Code:
         S3Bucket: !Ref LambdaS3Bucket
         S3Key: !Ref LambdaFunctionS3KeyMethodGET
       Runtime: !Ref LambdaRuntime
       MemorySize: !Ref LambdaFunctionMemory
-      Handler: !Ref LambdaFunctionMethodGETHandler
       Architectures:
         - !Ref LambdaArchitecture
       Layers:
-        - !Ref CreateLambdaLayer
-      VpcConfig:
-        SubnetIds: !Ref LambdaSubnetsId
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroupId
+        - !Ref LambdaLayer
       Environment:
         Variables:
           DB_HOST: !Ref DBHost
           DB_USER: !Ref DBUser
           DB_NAME: !Ref DBName
           DB_PASSWORD: !Ref DBPassword
+          DB_TABLE_NAME: !Ref DBTableName
 
-          
-#   Api:
-#     Type: AWS::Serverless::Api
-#     Properties:
-#       Name: !Sub
-#         - ${ResourceName} From Stack ${AWS::StackName}
-#         - ResourceName: Api
-#       StageName: Prod
-#       DefinitionBody:
-#         openapi: '3.0'
-#         info: {}
-#         paths:
-#           /:
-#             get:
-#               responses: {}
-#       EndpointConfiguration: REGIONAL
-#       TracingEnabled: true
-# Transform: AWS::Serverless-2016-10-31
+  ###################################################################################
+  ##                        Resources For API Gateway                              ##
+  ###################################################################################
+
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Ref APIGatewayName
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  ApiGatewayTodoListResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !GetAtt RestApi.RootResourceId
+      PathPart: 'todolist'
+
+  ApiGatewayMethodGET:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref ApiGatewayTodoListResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations
+          - LambdaFunctionArn: !GetAtt LambdaFunctionMethodGET.Arn
+
+
+  LambdaPermissionForApiGateway:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaFunctionMethodGET
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 
+        - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*/*/*
+        - RestApi: !Ref RestApi
+
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - ApiGatewayMethodGET
+    Properties:
+      RestApiId: !Ref RestApi
+      Description: 'Deployment for REST API'
+
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref RestApi
+      DeploymentId: !Ref ApiGatewayDeployment
+      StageName: !Ref DeploymentStageName
+
+Outputs:
+  APIGatewayURL:
+    Description: URL of the API Gateway endpoint
+    Value: !Sub 
+      - https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${DeploymentStageName}/
+      - RestApi: !Ref RestApi
+        DeployStageName: !Ref DeploymentStageName
+  APIGatewayID:
+    Description: ID of the API Gateway
+    Value: !Ref RestApi
+  LambdaFunctionMethodGETArn:
+    Description: ARN of the GET method Lambda function
+    Value: !GetAtt LambdaFunctionMethodGET.Arn
+  LambdaLayerArn:
+    Description: ARN of the Lambda Layer
+    Value: !Ref LambdaLayer
