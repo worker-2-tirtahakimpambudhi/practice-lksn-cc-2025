@@ -1,0 +1,159 @@
+Parameters:
+  ###################################################################################
+  ##                            Parameters For RDS                                 ##
+  ###################################################################################
+
+  RDSName:
+    Type: String
+    Default: demodb
+    Description: The rds name
+
+  RDSUsername:
+    Type: String
+    Default: admin
+    Description: The rds admin username
+
+  RDSPassword:
+    Type: String
+    NoEcho: true
+    Default: Password123!
+    Description: The rds admin password
+
+  RDSInstanceClass:
+    Type: String
+    Default: db.t3.micro
+    Description: The rds instance type
+
+  ElasticacheInstanceClass:
+    Type: String
+    Default: cache.t2.micro
+    Description: The elasticache instance type
+
+  RDSSubnetGroupName:
+    Type: String
+    Description: The name of subnet group rds instance
+
+  ElasticacheSubnetGroupName:
+    Type: String
+    Description: The name of subnet group rds instance
+
+  RDSInstanceName:
+    Type: String
+    Description: The name of rds instance
+
+  ElasticacheInstanceName:
+    Type: String
+    Description: The name of elasticache instance
+
+  RDSSubnetsPrivate:
+    Type: List<String>
+    Description: The private subnet id of rds instance
+
+  ElasticacheSubnetsPrivate:
+    Type: List<String>
+    Description: The private subnet id of elasticache instance
+
+  RDSSecurityGroupId:
+    Type: String
+    Description: The id of rds security group
+
+  ELCSecurityGroupId:
+    Type: String
+    Description: The id of elacticache security group
+
+  RDSInstanceEngine:
+    Type: String
+    Description: the engine rds instance
+    Default: mysql
+    AllowedValues:
+      - mysql
+      - mariadb
+      - postgres
+
+  RDSInstanceEngineVersion:
+    Type: Number
+    Description: the engine version rds instance
+    Default: 8.0.33
+
+  ElasticacheInstanceEngine:
+    Type: String
+    Description: the engine elasticache instance
+    Default: memcached
+    AllowedValues:
+      - memcached
+      - valkey
+
+  ElasticacheEngineVersion:
+    Type: String
+    Description: the engine version elasticache instance
+    Default: 1.6.22
+    AllowedValues:
+      - 1.4.14
+      - 1.4.24
+      - 1.4.33
+      - 1.4.34
+      - 1.4.5
+      - 1.5.10
+      - 1.5.16
+      - 1.6.12
+      - 1.6.17
+      - 1.6.22
+      - 1.6.6
+
+Resources:
+  # 1. Create Subnet Group
+  CreateRDSSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: This subnet group for rds instance
+      SubnetIds: !Ref RDSSubnetsPrivate
+      Tags:
+        - Key: Name
+          Value: !Ref RDSSubnetGroupName
+
+  CreateELCSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: This subnet group for elasticache instance
+      SubnetIds: !Ref ElasticacheSubnetsPrivate
+      Tags:
+        - Key: Name
+          Value: !Ref ElasticacheSubnetGroupName
+
+  # 2. Create DB Instance
+  CreateRDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBSubnetGroupName: !Ref CreateRDSSubnetGroup
+      DBInstanceClass: !Ref RDSInstanceClass
+      DBName: !Ref RDSName
+      MasterUsername: !Ref RDSUsername
+      MasterUserPassword: !Ref RDSPassword
+      StorageType: gp2
+      Engine: !Ref RDSInstanceEngine
+      EngineVersion: !Ref RDSInstanceEngineVersion
+      AllocatedStorage: 20
+      BackupRetentionPeriod: 0
+      MultiAZ: false
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroupId
+      Tags:
+        - Key: Name
+          Value: !Ref RDSInstanceName
+    DeletionPolicy: Delete
+
+  CreateElasticacheCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      Engine: !Ref ElasticacheInstanceEngine
+      CacheNodeType: !Ref ElasticacheInstanceClass
+      NumCacheNodes: 1
+      CacheSubnetGroupName: !Ref CreateELCSubnetGroup
+      ClusterName: !Ref ElasticacheInstanceName
+      EngineVersion: !Ref ElasticacheEngineVersion
+      VpcSecurityGroupIds:
+        - !Ref ELCSecurityGroupId
+      Tags:
+        - Key: Name
+          Value: !Ref ElasticacheInstanceName
+    DeletionPolicy: Delete
