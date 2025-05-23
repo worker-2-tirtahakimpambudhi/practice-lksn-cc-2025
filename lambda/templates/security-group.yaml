@@ -1,0 +1,93 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  ###################################################################################
+  ##                    Parameters For Networking (Security Group)                 ##
+  ###################################################################################
+
+  VPCId:
+    Type: String
+    Description: the vpc id to attach security group
+
+Resources:
+
+  ###################################################################################
+  ##                    Resources For Networking (Security Group)                  ##
+  ###################################################################################
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${AWS::StackName}-rds-sg
+      GroupDescription: Security Group for the RDS Service
+      VpcId: !Ref VPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+          FromPort: 3306
+          ToPort: 3306
+          Description: Allow MySQL access from Lambda Security Group
+      Tags:
+        - Key: Name
+          Value: RDS Security Group
+
+  ELCSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${AWS::StackName}-elc-sg
+      GroupDescription: Security Group for the Elasticache Service
+      VpcId: !Ref VPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+          FromPort: 6379
+          ToPort: 6379
+          Description: Allow Redis access from Lambda Security Group
+      Tags:
+        - Key: Name
+          Value: Elasticache Security Group
+
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${AWS::StackName}-lambda-sg
+      GroupDescription: Security Group for Lambda functions
+      VpcId: !Ref VPCId
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
+      Tags:
+        - Key: Name
+          Value: Lambda Security Group
+
+Outputs:
+
+  ###################################################################################
+  ##                      Outputs For Networking (Security Group)                  ##
+  ###################################################################################
+
+  RDSSecurityGroupInformation:
+    Description: The RDS Security Group Detail Information
+    Value: !Join
+      - ' '
+      - - 'Security Group:'
+        - !Ref RDSSecurityGroup
+        - 'Group ID:'
+        - !GetAtt RDSSecurityGroup.GroupId
+  ELCSecurityGroupInformation:
+    Description: The Elasticache Security Group Detail Information
+    Value: !Join
+      - ' '
+      - - 'Security Group:'
+        - !Ref ELCSecurityGroup
+        - 'Group ID:'
+        - !GetAtt ELCSecurityGroup.GroupId
+  LambdaSecurityGroupInformation:
+    Description: The Lambda Security Group Detail Information
+    Value: !Join
+      - ' '
+      - - 'Security Group:'
+        - !Ref LambdaSecurityGroup
+        - 'Group ID:'
+        - !GetAtt LambdaSecurityGroup.GroupId
