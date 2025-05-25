@@ -1,2 +1,4 @@
 cert/*
 commit.sh
+lambda/output/*
+.git/*
