@@ -1,0 +1,96 @@
+Parameters:
+
+  ###################################################################################
+  ##                            Parameters For Lambda                              ##
+  ###################################################################################
+  
+  LambdaLayerName:
+    Type: String
+    Default: lksn-restapi-layer
+    Description: The name of the Lambda layer
+
+  LambdaLayerS3Bucket:
+    Type: String
+    Description: The name s3 bucket for source code lambda layer
+
+  LambdaLayerS3Key:
+    Type: String
+    Description: The name s3 key for source code lambda layer
+
+  LambdaRuntime:
+    Type: String
+    Default: nodejs22.x
+    Description: The runtime of the Lambda function
+    AllowValues:
+      - nodejs22.xx
+      - nodejs20.xx
+      - nodejs18.xx
+
+  LambdaBaseFunctionName:
+      Type: String
+      Default: lksn-restapi
+      Description: The name of the Lambda function
+
+  LambdaArchitecture:
+    Type: String
+    Default: x86_64
+    Description: The architecture of the Lambda function
+    AllowedValues:
+      - x86_64
+      - arm64
+
+  LambdaFunctionZipFileMethodGET:
+    Type: String
+    Default: file://src/lambda_get_api.zip
+    Description: The name of the Lambda function for GET
+
+  LambdaFunctionMemory:
+    Type: Number
+    Default: 128
+    Description: The memory size of the Lambda function
+
+  LambdaSubnetsId:
+    Type: List<String> 
+    Description: The subnet idffor lambda function
+
+  LambdaSecurityGroupId: 
+    Type: String
+    Descriptiom: The security group id for lambda function
+
+Resources:
+
+  ###################################################################################
+  ##                            Resources For Lambda                               ##
+  ###################################################################################
+
+  CreateLambdaLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: !Ref LambdaLayerName
+      Description: Lambda layer for the application
+      Content:
+        S3Bucket: !Ref LambdaLayerS3Bucket
+        S3Key: !Ref LambdaLayerS3Key
+      CompatibleRuntimes:
+        - !Ref LambdaRuntime
+      LicenseInfo: MIT
+  
+  CreateLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-${LambdaBaseFunctionName}"
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: !Ref LambdaFunctionZipFileMethodGET
+      Runtime: !Ref LambdaRuntime
+      MemorySize: !Ref LambdaFunctionMemory
+      Architectures:
+        - !Ref LambdaArchitecture
+      Layers:
+        - !Ref CreateLambdaLayer
+      VpcConfig:
+        SubnetIds: !Ref LambdaSubnetsId
+        SecurityGroupIds:
+          - !Ref RDSSecurityGroupId
+
