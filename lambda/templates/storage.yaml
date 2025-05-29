@@ -1,0 +1,21 @@
+Parameters:
+
+    BucketName:
+      Type: String
+      Description: The name of the S3 bucket for Lambda layer source code
+      Default: lksncc-2025-s3-bucket
+
+
+
+Resources:
+
+    CreateS3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: !Ref BucketName
+        VersioningConfiguration:
+          Status: Enabled
+        Tags:
+          - Key: Name
+            Value: !Ref BucketName
+        DeletePolicy: Delete
